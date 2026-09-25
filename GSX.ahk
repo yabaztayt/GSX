@@ -2,6 +2,9 @@
 #SingleInstance Force
 Persistent
 
+RUN_KEY := "HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run"
+RUN_VALUE_NAME := "GuideStartXInput"
+
 ; --- Menú de la bandeja ---
 ; No se llama a TraySetIcon: así se usa automáticamente el ícono que le
 ; pusiste al .exe al compilarlo con Ahk2Exe. Si corres el .ahk directo
@@ -10,8 +13,36 @@ A_TrayMenu.Delete()  ; quita las opciones default (Open, Reload, Pause, Exit, et
 A_TrayMenu.Add("About", ShowAbout)
 A_TrayMenu.Add("Donations", (*) => Run("https://www.patreon.com/cw/Yabazta"))
 A_TrayMenu.Add()  ; separador
+A_TrayMenu.Add("Run at startup", ToggleStartup)
+A_TrayMenu.Add()  ; separador
 A_TrayMenu.Add("Salir", (*) => ExitApp())
 A_TrayMenu.Default := "About"
+
+; Refleja en el checkmark si ya está configurado para iniciar con Windows.
+if IsStartupEnabled()
+    A_TrayMenu.Check("Run at startup")
+
+IsStartupEnabled() {
+    global RUN_KEY, RUN_VALUE_NAME
+    try {
+        RegRead(RUN_KEY, RUN_VALUE_NAME)
+        return true
+    } catch {
+        return false
+    }
+}
+
+ToggleStartup(*) {
+    global RUN_KEY, RUN_VALUE_NAME
+    if IsStartupEnabled() {
+        try RegDelete(RUN_KEY, RUN_VALUE_NAME)
+        A_TrayMenu.Uncheck("Run at startup")
+    } else {
+        ; Comillas por si la ruta tiene espacios.
+        RegWrite('"' . A_ScriptFullPath . '"', "REG_SZ", RUN_KEY, RUN_VALUE_NAME)
+        A_TrayMenu.Check("Run at startup")
+    }
+}
 
 ; Windows solo muestra el menú en clic derecho por defecto.
 ; Interceptamos el mensaje del ícono para que el clic izquierdo también lo abra.
