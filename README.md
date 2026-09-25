@@ -1,6 +1,6 @@
-# 🎮 GuideStartXInput
+# 🎮 GSX (Guide + Start XInput task killing app)
 
-Lightweight AutoHotkey v2 script that runs in the background and sends **Ctrl+Alt+F4** when you press **Guide** (Xbox/Home) **+ Start** at the same time on any XInput-compatible controller. ⚡
+Ultra lightweight AutoHotkey v2 script that runs in the background and sends **Ctrl+Alt+F4** when you press **Guide** (Xbox/Home) **+ Start** at the same time on any XInput-compatible controller. ⚡
 
 Meant to be used alongside [SuperF4](https://github.com/stefansundin/superf4) 🔪, which is what actually force-closes the foreground window when it receives that key combo. This script only simulates the keypress from the controller — it doesn't kill any process itself.
 
