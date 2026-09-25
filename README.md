@@ -69,3 +69,5 @@ Everything adjustable lives at the top of the `.ahk` file:
 ## 💛 Credits
 
 Made by **Yabazta**. Vibecoded btw. 🤖✨
+
+If you want, you can support me at [Patreon](https://www.patreon.com/cw/Yabazta).
