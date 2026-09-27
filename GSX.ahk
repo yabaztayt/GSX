@@ -2,6 +2,12 @@
 #SingleInstance Force
 Persistent
 
+; Versión actual y repositorio de GitHub, usados por el auto-actualizador.
+; IMPORTANTE: cambia GITHUB_REPO por tu usuario/repo real antes de publicar,
+; y sube el número de APP_VERSION en cada release que hagas.
+APP_VERSION := "0.4"
+GITHUB_REPO := "yabaztayt/GSX"
+
 RUN_KEY := "HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run"
 RUN_VALUE_NAME := "GSX"
 
@@ -12,12 +18,18 @@ FORCE_KILL_GRACE_SEC := 2.0
 ; --- Menú de la bandeja ---
 A_TrayMenu.Delete()
 A_TrayMenu.Add("About", ShowAbout)
+A_TrayMenu.Add("Check for updates", (*) => CheckForUpdates(true))
 A_TrayMenu.Add("Donations", (*) => Run("https://www.patreon.com/cw/Yabazta"))
 A_TrayMenu.Add()
 A_TrayMenu.Add("Run at startup", ToggleStartup)
 A_TrayMenu.Add()
 A_TrayMenu.Add("Salir", (*) => ExitApp())
 A_TrayMenu.Default := "About"
+
+; Revisa actualizaciones ~3 segundos después de arrancar (para no
+; retrasar el inicio si GitHub tarda en responder), y en silencio: si no
+; hay internet o GitHub no responde, simplemente no dice nada.
+SetTimer(() => CheckForUpdates(false), -3000)
 
 if IsStartupEnabled()
     A_TrayMenu.Check("Run at startup")
@@ -51,8 +63,10 @@ TrayIconClick(wParam, lParam, msg, hwnd) {
 }
 
 ShowAbout(*) {
+    global APP_VERSION
     MsgBox(
-        "Guide+Start -> Alt+F4 (con auto force-kill si no responde)`n"
+        "GSX v" . APP_VERSION . "`n`n"
+        . "Guide+Start -> Alt+F4 (con auto force-kill si no responde)`n"
         . "Guide+Back -> Activar/desactivar modo mouse`n"
         . "Y (en modo mouse) -> Mostrar/ocultar teclado en pantalla`n"
         . "   (arrástralo desde su barra superior, botón ?123 para símbolos,`n"
@@ -64,7 +78,54 @@ ShowAbout(*) {
     )
 }
 
-; --- Aviso de primer uso ---
+; Consulta la última release publicada en GitHub y avisa si hay una
+; versión más nueva que la actual. silent=false permite que, si el
+; usuario lo pidió manualmente desde el menú, también le avisemos cuando
+; YA tiene la última versión (en el chequeo automático de fondo no se
+; molesta con eso). Cualquier error de red se ignora sin avisar nada,
+; para no ser molesto si no hay internet.
+CheckForUpdates(manual) {
+    global APP_VERSION, GITHUB_REPO
+    try {
+        whr := ComObject("WinHttp.WinHttpRequest.5.1")
+        whr.Open("GET", "https://api.github.com/repos/" . GITHUB_REPO . "/releases/latest", true)
+        whr.SetRequestHeader("User-Agent", "GSX-Updater")
+        whr.Send()
+        whr.WaitForResponse(10)  ; hasta 10 segundos, no se queda colgado
+
+        if (whr.Status != 200) {
+            if manual
+                MsgBox("No se pudo consultar GitHub ahorita (código " . whr.Status . "). Intenta más tarde.", "GSX", "Iconi")
+            return
+        }
+
+        if !RegExMatch(whr.ResponseText, '"tag_name"\s*:\s*"v?([^"]+)"', &m)
+            return
+
+        latest := m[1]
+        if (latest = APP_VERSION) {
+            if manual
+                MsgBox("Ya tienes la última versión (" . APP_VERSION . ").", "GSX", "Iconi")
+            return
+        }
+
+        result := MsgBox(
+            "Hay una nueva versión disponible: " . latest . "`n"
+            . "Tienes instalada: " . APP_VERSION . "`n`n"
+            . "¿Abrir la página de descargas?",
+            "GSX - Actualización disponible",
+            "YesNo Iconi"
+        )
+        if (result = "Yes")
+            Run("https://github.com/" . GITHUB_REPO . "/releases/latest")
+
+    } catch as e {
+        if manual
+            MsgBox("No se pudo revisar actualizaciones: " . e.Message, "GSX", "Iconi")
+    }
+}
+
+
 ShowFirstRunWarning()
 
 ShowFirstRunWarning() {
@@ -222,13 +283,83 @@ ToggleMouseMode() {
 
     if mouseModeActive {
         SetTimer(CheckCombo, POLL_INTERVAL_MOUSE_MS)
-        TrayTip("GSX", "Modo mouse activado", 1)
     } else {
         ReleaseAllMouseModeState()
         SetTimer(CheckCombo, POLL_INTERVAL_IDLE_MS)
-        TrayTip("GSX", "Modo mouse desactivado", 1)
+    }
+
+    ShowMouseModeIndicator(mouseModeActive)
+}
+
+; --- Indicador visual de Modo Mouse ---
+; TrayTip depende de que Windows tenga las notificaciones de la app
+; habilitadas (Configuración > Notificaciones), del Asistente de
+; Enfoque, y de que el .exe tenga un AppUserModelID registrado — nada de
+; eso está garantizado para un script/exe de AutoHotkey, así que en la
+; práctica es fácil que nunca se vea. Esta ventanita propia (igual que
+; el teclado en pantalla) no depende de nada de Windows: siempre se ve.
+mouseModeIndicatorGui := ""
+MOUSE_INDICATOR_DURATION_MS := 2500
+
+ShowMouseModeIndicator(isOn) {
+    global mouseModeIndicatorGui, MOUSE_INDICATOR_DURATION_MS
+
+    ; Cancela cualquier auto-ocultado pendiente de una activación previa,
+    ; y destruye el indicador anterior si por algo seguía vivo (evita que
+    ; un timer viejo borre uno nuevo si activas/desactivas muy rápido).
+    SetTimer(HideMouseModeIndicator, 0)
+    if (mouseModeIndicatorGui != "") {
+        mouseModeIndicatorGui.Destroy()
+        mouseModeIndicatorGui := ""
+    }
+
+    ; Tamaño de letra proporcional al alto de la pantalla, para que se
+    ; alcance a apreciar bien tanto en un monitor pequeño como en un TV
+    ; grande/4K desde el sillón. Con límites para no quedar ridículo en
+    ; ningún extremo.
+    fontSize := Round(A_ScreenHeight / 18)
+    if (fontSize < 28)
+        fontSize := 28
+    if (fontSize > 90)
+        fontSize := 90
+
+    ; Mismo estilo para ambos estados, solo cambia el texto y el color
+    ; (verde lima = activado, rojo suave = desactivado) para que se
+    ; distingan de un vistazo sin tener que leer con calma.
+    text := isOn ? "🖱  Mouse Mode ON" : "🖱  Mouse Mode OFF"
+    color := isOn ? "cLime" : "cFF6B6B"
+
+    g := Gui("+AlwaysOnTop -Caption +ToolWindow +E0x08000000", "GSX Indicator")
+    g.BackColor := "1E1E1E"
+    g.MarginX := Round(fontSize * 1.1)
+    g.MarginY := Round(fontSize * 0.55)
+    g.SetFont("s" . fontSize . " " . color . " Bold", "Segoe UI")
+    g.Add("Text", , text)
+
+    ; Se muestra primero muy lejos de la pantalla (en vez de oculta) para
+    ; medir su tamaño real sin que el usuario la vea, y luego se centra.
+    g.Show("NoActivate AutoSize x-4000 y-4000")
+    WinGetPos(, , &w, &h, "ahk_id " . g.Hwnd)
+
+    x := (A_ScreenWidth - w) / 2
+    y := (A_ScreenHeight - h) / 2
+    WinMove(x, y, , , "ahk_id " . g.Hwnd)
+    WinSetTransparent(235, "ahk_id " . g.Hwnd)
+
+    mouseModeIndicatorGui := g
+    SetTimer(HideMouseModeIndicator, -MOUSE_INDICATOR_DURATION_MS)
+}
+
+HideMouseModeIndicator() {
+    global mouseModeIndicatorGui
+    SetTimer(HideMouseModeIndicator, 0)
+    if (mouseModeIndicatorGui != "") {
+        mouseModeIndicatorGui.Destroy()
+        mouseModeIndicatorGui := ""
     }
 }
+
+
 
 ; Deadzones estándar de XInput.
 LEFT_STICK_DEADZONE  := 7849
@@ -540,16 +671,54 @@ oskPressedHwnd := 0       ; tecla actualmente presionada (para el efecto visual 
 oskRepeatAction := ""     ; acción en auto-repetición mientras se mantiene presionada (ej. backspace)
 oskRepeatFirst := false
 
-; Lado de la pantalla donde aparece el teclado la primera vez, para que
-; no tape el cuadro de texto que estás usando (cambia a "left" si
-; prefieres que aparezca del lado izquierdo). Después de la primera vez,
-; el teclado recuerda dónde lo dejaste (incluida cualquier posición a la
-; que lo hayas arrastrado).
-OSK_DEFAULT_SIDE := "right"
-OSK_WIDTH     := 620
-OSK_HEIGHT    := 284
-OSK_MARGIN    := 20
-OSK_BARHEIGHT := 26
+; --- Tamaño del teclado: porcentajes, no píxeles fijos ---
+; Antes OSK_WIDTH/OSK_HEIGHT (y todo lo demás: barra, teclas, gaps,
+; tipografía) eran números fijos en píxeles, pensados para 1080p. En una
+; pantalla más grande (1440p, 4K) eso se ve proporcionalmente chico, y
+; en una más chica se puede salir de la pantalla. Ahora todo se deriva
+; de porcentajes, así que se ve igual de grande en relación a la
+; pantalla sin importar la resolución.
+;
+; Nota: esto se calcula una sola vez al arrancar el script. Si cambias
+; la resolución de pantalla (o conectas el HTPC a otro monitor/TV)
+; mientras GSX ya está corriendo, hay que reiniciar el script para que
+; el teclado recalcule su tamaño.
+
+OSK_WIDTH_PCT  := 0.44   ; % del ancho de pantalla
+OSK_HEIGHT_PCT := 0.40   ; % del alto de pantalla
+
+; Límites de seguridad (en píxeles) para que no quede absurdamente
+; chico en una resolución muy baja, ni absurdamente gigante en una muy
+; alta (8K, monitores ultrawide, etc.).
+OSK_WIDTH  := Max(620, Min(1600, Round(A_ScreenWidth  * OSK_WIDTH_PCT)))
+OSK_HEIGHT := Max(300, Min(820,  Round(A_ScreenHeight * OSK_HEIGHT_PCT)))
+
+; El resto de las medidas del teclado (barra superior, alto/ancho de
+; teclas, separaciones, tipografía) son porcentajes DEL TAMAÑO YA
+; CALCULADO arriba, para que todo escale junto y mantenga las mismas
+; proporciones sin importar en qué resolución haya terminado OSK_WIDTH
+; y OSK_HEIGHT. Los porcentajes están sacados del diseño anterior (que
+; se veía bien a 660x316), solo que ahora aplicados de forma relativa.
+OSK_BARHEIGHT         := Round(OSK_HEIGHT * 0.089)
+OSK_ROW_HEIGHT         := Round(OSK_HEIGHT * 0.152)
+OSK_ROW_GAP             := Round(OSK_HEIGHT * 0.019)
+OSK_KEY_GAP             := Round(OSK_WIDTH  * 0.009)
+OSK_ROW_START_X         := Round(OSK_WIDTH  * 0.015)
+OSK_KEY_WIDTH_NORMAL   := Round(OSK_WIDTH  * 0.070)
+OSK_KEY_WIDTH_WIDE     := Round(OSK_WIDTH  * 0.145)
+OSK_KEY_WIDTH_SPACE    := Round(OSK_WIDTH  * 0.409)
+
+; Tipografía en función del tamaño de lo que la contiene (tecla o
+; barra), con un mínimo legible por si el teclado terminó muy chico.
+OSK_FONT_KEY   := Max(9, Round(OSK_ROW_HEIGHT * 0.27))
+OSK_FONT_BAR   := Max(8, Round(OSK_BARHEIGHT * 0.36))
+OSK_FONT_CLOSE := Max(9, Round(OSK_BARHEIGHT * 0.50))
+
+; Márgenes respecto a la PANTALLA (no al teclado): cuánto aire dejar
+; contra los bordes, y cuánto separar el teclado del cursor cuando se
+; acomoda arriba/abajo de él.
+OSK_MARGIN          := Round(A_ScreenHeight * 0.0185)
+OSK_GAP_ABOVE_MOUSE := Round(A_ScreenHeight * 0.022)
 
 ; --- Paleta de colores ---
 OSK_COL_BG            := "1E1E1E"
@@ -584,29 +753,46 @@ ToggleOnScreenKeyboard() {
 
     if (oskGui = "" || !WinExist("ahk_id " . oskGui.Hwnd)) {
         oskGui := BuildOnScreenKeyboardGui()
-        ShowOnScreenKeyboardAtDefaultPosition()
+        ShowOnScreenKeyboardNearMouse()
         return
     }
 
     if DllCall("IsWindowVisible", "Ptr", oskGui.Hwnd)
         oskGui.Hide()
     else
-        oskGui.Show("NoActivate")
+        ShowOnScreenKeyboardNearMouse()
 }
 
-ShowOnScreenKeyboardAtDefaultPosition() {
-    global oskGui, OSK_DEFAULT_SIDE, OSK_WIDTH, OSK_HEIGHT, OSK_MARGIN
+; Se acomoda centrado horizontalmente sobre el cursor, y por ARRIBA de
+; él (con un margen de por medio) en vez de rodearlo -- así es mucho
+; más difícil que el teclado tape la caja de texto que estés usando,
+; que normalmente está justo donde tienes el cursor o muy cerca. Si no
+; cabe arriba (cursor muy pegado al borde superior de la pantalla), se
+; acomoda abajo del cursor en su lugar. Esto se recalcula CADA vez que
+; abres el teclado, siguiendo a donde esté el cursor en ese momento.
+ShowOnScreenKeyboardNearMouse() {
+    global oskGui, OSK_WIDTH, OSK_HEIGHT, OSK_MARGIN, OSK_GAP_ABOVE_MOUSE
 
-    y := (A_ScreenHeight - OSK_HEIGHT) / 2
-    x := (OSK_DEFAULT_SIDE = "left")
-        ? OSK_MARGIN
-        : A_ScreenWidth - OSK_WIDTH - OSK_MARGIN
+    CoordMode("Mouse", "Screen")
+    MouseGetPos(&mx, &my)
+
+    x := mx - (OSK_WIDTH / 2)
+    if (x < OSK_MARGIN)
+        x := OSK_MARGIN
+    if (x + OSK_WIDTH > A_ScreenWidth - OSK_MARGIN)
+        x := A_ScreenWidth - OSK_WIDTH - OSK_MARGIN
+
+    y := my - OSK_HEIGHT - OSK_GAP_ABOVE_MOUSE
+    if (y < OSK_MARGIN)
+        y := my + OSK_GAP_ABOVE_MOUSE  ; no cabe arriba: se acomoda abajo del cursor
+    if (y + OSK_HEIGHT > A_ScreenHeight - OSK_MARGIN)
+        y := A_ScreenHeight - OSK_HEIGHT - OSK_MARGIN
 
     oskGui.Show("x" . x . " y" . y . " w" . OSK_WIDTH . " h" . OSK_HEIGHT . " NoActivate")
 }
 
 BuildOnScreenKeyboardGui() {
-    global oskDragBarHwnd, oskCloseHwnd, OSK_WIDTH, OSK_BARHEIGHT
+    global oskDragBarHwnd, oskCloseHwnd, OSK_WIDTH, OSK_BARHEIGHT, OSK_FONT_BAR, OSK_FONT_CLOSE
     global OSK_COL_BG, OSK_COL_BAR, OSK_COL_TEXT
 
     ; +E0x08000000 = WS_EX_NOACTIVATE: esta línea es la corrección clave
@@ -621,12 +807,12 @@ BuildOnScreenKeyboardGui() {
     ; --- Barra superior: título + zona de arrastre + botón cerrar ---
     dragBar := g.Add("Text", "x0 y0 w" . (OSK_WIDTH - OSK_BARHEIGHT) . " h" . OSK_BARHEIGHT
         . " +0x300 Background" . OSK_COL_BAR . " c" . OSK_COL_TEXT, "  ⠿  GSX Keyboard   ·   arrastra aquí para mover")
-    dragBar.SetFont("s9", "Segoe UI")
+    dragBar.SetFont("s" . OSK_FONT_BAR, "Segoe UI")
     oskDragBarHwnd := dragBar.Hwnd
 
     closeBtn := g.Add("Text", "x" . (OSK_WIDTH - OSK_BARHEIGHT) . " y0 w" . OSK_BARHEIGHT . " h" . OSK_BARHEIGHT
         . " Center +0x300 Background" . OSK_COL_BAR . " cSilver", "×")
-    closeBtn.SetFont("s12 Bold", "Segoe UI")
+    closeBtn.SetFont("s" . OSK_FONT_CLOSE . " Bold", "Segoe UI")
     oskCloseHwnd := closeBtn.Hwnd
 
     RebuildKeys(g, "letters")
@@ -638,7 +824,9 @@ BuildOnScreenKeyboardGui() {
 ; "symbols"). Destruye las teclas anteriores y dibuja las nuevas; la
 ; barra de arrastre y el botón de cerrar no se tocan.
 RebuildKeys(g, layout) {
-    global oskLayout, oskKeyMeta, oskLetterHwnds, oskShiftHwnd, oskKeyControls, OSK_BARHEIGHT
+    global oskLayout, oskKeyMeta, oskLetterHwnds, oskShiftHwnd, oskKeyControls
+    global OSK_BARHEIGHT, OSK_ROW_HEIGHT, OSK_ROW_GAP, OSK_KEY_GAP, OSK_ROW_START_X
+    global OSK_KEY_WIDTH_NORMAL, OSK_KEY_WIDTH_WIDE, OSK_KEY_WIDTH_SPACE
 
     for ctrl in oskKeyControls
         DestroyOskControl(ctrl)
@@ -666,19 +854,19 @@ RebuildKeys(g, layout) {
         ]
     }
 
-    y := OSK_BARHEIGHT + 6
+    y := OSK_BARHEIGHT + OSK_ROW_GAP
     for row in rows {
-        x := 8
+        x := OSK_ROW_START_X
         for item in row {
             label := item[1]
             kind := item[2]
             action := (item.Length >= 3) ? item[3] : label
 
-            w := (kind = "space") ? 246
-                : (kind = "danger" || kind = "accent" || kind = "toggle") ? 88
-                : 42
+            w := (kind = "space") ? OSK_KEY_WIDTH_SPACE
+                : (kind = "danger" || kind = "accent" || kind = "toggle") ? OSK_KEY_WIDTH_WIDE
+                : OSK_KEY_WIDTH_NORMAL
 
-            ctrl := AddOskKey(g, x, y, w, 42, label, kind, action)
+            ctrl := AddOskKey(g, x, y, w, OSK_ROW_HEIGHT, label, kind, action)
             oskKeyControls.Push(ctrl)
 
             if (kind = "letter")
@@ -686,9 +874,9 @@ RebuildKeys(g, layout) {
             if (action = "SHIFT")
                 oskShiftHwnd := ctrl.Hwnd
 
-            x += w + 6
+            x += w + OSK_KEY_GAP
         }
-        y += 48
+        y += OSK_ROW_HEIGHT + OSK_ROW_GAP
     }
 
     UpdateLetterCaseDisplay()
@@ -708,7 +896,7 @@ RebuildKeys(g, layout) {
 ; de cerrar, por eso todos usan "+0x300" (0x100 | 0x200) en sus opciones.
 AddOskKey(g, x, y, w, h, label, kind, action) {
     global oskKeyMeta, OSK_COL_KEY, OSK_COL_KEY_PRESS, OSK_COL_ACCENT, OSK_COL_ACCENT_PRESS
-    global OSK_COL_DANGER, OSK_COL_DANGER_PRESS, OSK_COL_TEXT
+    global OSK_COL_DANGER, OSK_COL_DANGER_PRESS, OSK_COL_TEXT, OSK_FONT_KEY
 
     switch kind {
         case "accent":
@@ -723,7 +911,7 @@ AddOskKey(g, x, y, w, h, label, kind, action) {
     }
 
     ctrl := g.Add("Text", "x" . x . " y" . y . " w" . w . " h" . h . " Center +0x300 Background" . bg . " c" . OSK_COL_TEXT, label)
-    ctrl.SetFont("s12", "Segoe UI")
+    ctrl.SetFont("s" . OSK_FONT_KEY, "Segoe UI")
 
     oskKeyMeta[ctrl.Hwnd] := {label: label, kind: kind, action: action, bg: bg, bgPress: bgPress, ctrl: ctrl}
     return ctrl
