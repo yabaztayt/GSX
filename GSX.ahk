@@ -5,7 +5,7 @@ Persistent
 ; Versión actual y repositorio de GitHub, usados por el auto-actualizador.
 ; IMPORTANTE: cambia GITHUB_REPO por tu usuario/repo real antes de publicar,
 ; y sube el número de APP_VERSION en cada release que hagas.
-APP_VERSION := "0.4"
+APP_VERSION := "0.3.1"
 GITHUB_REPO := "yabaztayt/GSX"
 
 RUN_KEY := "HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run"
