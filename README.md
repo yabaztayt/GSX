@@ -12,6 +12,7 @@ On top of that, it also includes an optional **full mouse + keyboard mode** (tog
 - 👻 Runs 100% in the background, with a system tray icon and no visible windows.
 - 🪶 Very low CPU usage: optimized 100ms polling, with a cache of which controller slots are connected to skip unnecessary calls (0% usage in my Ryzen 5600x and only 4mb of RAM usage).
 - 🖱️ **Full mouse & keyboard mode** — move the cursor, click, scroll, control media/volume, and even type using a built-in on-screen keyboard, all from the controller.
+- 🟢 **On-screen "Mouse Mode ON/OFF" indicator** — a big, centered, auto-fading message every time you toggle Mouse Mode, so you always know its state at a glance from the couch. Doesn't depend on Windows notifications (which are unreliable for unsigned scripts/exes) since it's drawn by GSX itself.
 - ⌨️ **Custom on-screen keyboard** — draggable, positions itself above your cursor so it doesn't cover the field you're typing into, with letter/symbol layouts, a caps-lock-style shift key, visual press feedback on every key, and no dependency on Windows' own on-screen keyboard (which can be broken by debloat tools or blocked by UAC elevation on some setups).
 - 🔄 **Auto-updates** — checks your GitHub releases in the background on startup (silently, no popups unless there's actually something new) and lets you check manually from the tray menu at any time.
 - 🖱️ Tray menu icon (left or right click).
@@ -77,6 +78,8 @@ Toggle with **Guide + Back**. While active, every button on the controller does 
 
 Turning Mouse Mode off automatically releases any keys/clicks that might still be held down, so nothing gets "stuck."
 
+Every time you toggle it (either way), a big centered message flashes on screen for a couple of seconds and fades out on its own — green **"Mouse Mode ON"** when you turn it on, red **"Mouse Mode OFF"** when you turn it off — so it's obvious at a glance from across the room whether the controller is currently driving the mouse or not.
+
 ### ⌨️ On-screen keyboard
 
 Press **Y** while in Mouse Mode to show/hide a custom on-screen keyboard — built entirely in-house, with no dependency on Windows' `osk.exe` or the touch keyboard (`TabTip.exe`), both of which can be unreliable (elevation issues, or missing services after debloating Windows).
@@ -117,6 +120,7 @@ Everything adjustable lives at the top of the `.ahk` file:
 | `ScanIntervalMs` | How often it checks for newly connected/disconnected controllers (default 3000ms). |
 | `POLL_INTERVAL_IDLE_MS` | Combo polling frequency while Mouse Mode is off (default 100ms). |
 | `POLL_INTERVAL_MOUSE_MS` | Polling frequency while Mouse Mode is on, for smooth cursor movement (default 16ms). |
+| `MOUSE_INDICATOR_DURATION_MS` | How long the on-screen "Mouse Mode ON/OFF" message stays visible before fading out (default 2500ms). |
 | `FORCE_KILL_GRACE_SEC` | How long to wait after the polite close attempt before force-killing an unresponsive window (default 2.0 seconds). |
 | `LEFT_STICK_DEADZONE` / `RIGHT_STICK_DEADZONE` | Stick deadzones (standard XInput defaults). |
 | `CURSOR_MAX_SPEED` | Max cursor speed in pixels per tick at full stick deflection (default 32). |
