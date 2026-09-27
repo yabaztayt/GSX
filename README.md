@@ -135,3 +135,5 @@ Everything adjustable lives at the top of the `.ahk` file:
 Made by **Yabazta** with Claude AI. 🤖✨
 
 If you want, you can support me at [Patreon](https://www.patreon.com/cw/Yabazta).
+
+VirusTotal: [Scan](https://www.virustotal.com/gui/file/ad9361158485a797db9cdcefe33f62c4085649fd98153127312ab774633ffc9a).
