@@ -93,7 +93,7 @@ Press **Y** while in Mouse Mode to show/hide a custom on-screen keyboard — bui
 
 ## 🗂️ Tray menu
 
-- ℹ️ **About** — project credits.
+- ℹ️ **About** — project credits and instructions.
 - 🔄 **Check for updates** — manually asks GitHub for the latest release right away. If you're already on the latest version it'll tell you so; if there's an update, it offers to open the download page for you.
 - ☕ **Donations** — link to [Patreon](https://www.patreon.com/cw/Yabazta).
 - 🚀 **Run at startup** — self-explanatory.
@@ -105,6 +105,7 @@ On top of the manual check, GSX also checks for updates silently a few seconds a
 
 ## ⚠️ Known limitations
 
+- 🗝️ Your antivirus may block this application, but you can always take a look at the source code if you have any suspicions
 - 🎮 If your controller isn't fully compatible with Windows' XInput driver (e.g. some DirectInput-only pads), the Guide button might not be detected.
 - 🔒 GSX runs unelevated by design (safer, and less likely to get flagged by anti-cheat). This means it can't send clicks/keys to windows that are running as Administrator — you'd need to run GSX elevated too for that, which isn't recommended for online games with kernel-level anti-cheat.
 
