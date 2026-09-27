@@ -12,7 +12,8 @@ On top of that, it also includes an optional **full mouse + keyboard mode** (tog
 - 👻 Runs 100% in the background, with a system tray icon and no visible windows.
 - 🪶 Very low CPU usage: optimized 100ms polling, with a cache of which controller slots are connected to skip unnecessary calls (0% usage in my Ryzen 5600x and only 4mb of RAM usage).
 - 🖱️ **Full mouse & keyboard mode** — move the cursor, click, scroll, control media/volume, and even type using a built-in on-screen keyboard, all from the controller.
-- ⌨️ **Custom on-screen keyboard** — draggable, with letter/symbol layouts and a shift key, and no dependency on Windows' own on-screen keyboard (which can be broken by debloat tools or blocked by UAC elevation on some setups).
+- ⌨️ **Custom on-screen keyboard** — draggable, positions itself above your cursor so it doesn't cover the field you're typing into, with letter/symbol layouts, a caps-lock-style shift key, visual press feedback on every key, and no dependency on Windows' own on-screen keyboard (which can be broken by debloat tools or blocked by UAC elevation on some setups).
+- 🔄 **Auto-updates** — checks your GitHub releases in the background on startup (silently, no popups unless there's actually something new) and lets you check manually from the tray menu at any time.
 - 🖱️ Tray menu icon (left or right click).
 - ⚠️ Shows a requirements notice the first time it runs.
 
@@ -80,20 +81,24 @@ Turning Mouse Mode off automatically releases any keys/clicks that might still b
 
 Press **Y** while in Mouse Mode to show/hide a custom on-screen keyboard — built entirely in-house, with no dependency on Windows' `osk.exe` or the touch keyboard (`TabTip.exe`), both of which can be unreliable (elevation issues, or missing services after debloating Windows).
 
-- Move the cursor with the left stick and click keys with **RT**, just like any other on-screen button.
-- Drag it anywhere by its top bar; it remembers where you left it.
-- **⇧ Shift** is a one-shot modifier — tap it, type one key in uppercase, and it resets automatically.
-- **?123 / ABC** switches between the letter layout and a symbols/punctuation layout.
+- Move the cursor with the left stick and click keys with **RT**, just like any other on-screen button. Every key lights up while pressed, so you always get clear visual feedback.
+- Every time you open it, it appears centered above wherever your cursor currently is (falling back to below the cursor if there's no room above), so it stays out of the way of the text field you're about to use. You can still drag it anywhere by its top bar while it's open.
+- **⇧ Shift** is a toggle (like caps-lock) — tap it to switch to uppercase, tap it again to go back; the letter keys themselves flip case so you can see which mode you're in.
+- **⌫ Backspace** repeats automatically if you keep it held down, instead of needing to press it repeatedly.
+- **?123 / ABC** switches between the letter layout and a symbols/punctuation layout (`< >`, `@#$%`, brackets, quotes, etc.).
 - **✕** closes the keyboard from its own title bar.
 
 ## 🗂️ Tray menu
 
 - ℹ️ **About** — project credits.
+- 🔄 **Check for updates** — manually asks GitHub for the latest release right away. If you're already on the latest version it'll tell you so; if there's an update, it offers to open the download page for you.
 - ☕ **Donations** — link to [Patreon](https://www.patreon.com/cw/Yabazta).
 - 🚀 **Run at startup** — self-explanatory.
 - ❌ **Exit** — closes the script.
 
 Both left and right click on the tray icon open this menu.
+
+On top of the manual check, GSX also checks for updates silently a few seconds after it starts — if there's nothing new, it says nothing at all; if there's a newer release, it shows the same "update available" prompt as the manual check.
 
 ## ⚠️ Known limitations
 
@@ -106,6 +111,8 @@ Everything adjustable lives at the top of the `.ahk` file:
 
 | Variable | What it does |
 |---|---|
+| `APP_VERSION` | Current version number, shown in *About* and compared against the latest GitHub release to detect updates. Bump this on every release you publish. |
+| `GITHUB_REPO` | `"user/repo"` used by the auto-updater to query `api.github.com`. If you fork this project, change it to your own repo or the update checks will point at the wrong place. |
 | `XI_START` / `XI_GUIDE` / `XI_BACK` | Bits of the combos to detect. Can be swapped for other buttons in the XInput bitmask. |
 | `ScanIntervalMs` | How often it checks for newly connected/disconnected controllers (default 3000ms). |
 | `POLL_INTERVAL_IDLE_MS` | Combo polling frequency while Mouse Mode is off (default 100ms). |
@@ -120,6 +127,6 @@ Everything adjustable lives at the top of the `.ahk` file:
 
 ## 💛 Credits
 
-Made by **Yabazta**. Vibecoded btw. 🤖✨
+Made by **Yabazta** with Claude AI. 🤖✨
 
 If you want, you can support me at [Patreon](https://www.patreon.com/cw/Yabazta).
