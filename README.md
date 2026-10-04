@@ -105,9 +105,10 @@ On top of the manual check, GSX also checks for updates silently a few seconds a
 
 ## ⚠️ Known limitations
 
-- 🗝️ Your antivirus may block this application, but you can always take a look at the source code if you have any suspicions
+- 🗝️ Your antivirus may block this application, but you can always take a look at the source code if you have any suspicions.
 - 🎮 If your controller isn't fully compatible with Windows' XInput driver (e.g. some DirectInput-only pads), the Guide button might not be detected.
 - 🔒 GSX runs unelevated by design (safer, and less likely to get flagged by anti-cheat). This means it can't send clicks/keys to windows that are running as Administrator — you'd need to run GSX elevated too for that, which isn't recommended for online games with kernel-level anti-cheat.
+- ❌ You'll probably get warned by some anti-cheats about this app because it uses AutoHotkey, **USE IT AT YOUR OWN RISK, BE CAREFUL**.
 
 ## 🔧 Configuration
 
