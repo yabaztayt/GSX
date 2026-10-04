@@ -1,3 +1,18 @@
+; Estas directivas las lee Ahk2Exe automáticamente al compilar y graba
+; los metadatos dentro del .exe (los que ves en Propiedades > Detalles
+; de un ejecutable en Windows). Un exe sin nombre de compañía, versión
+; ni descripción se ve más "genérico/sospechoso" para varios motores
+; heurísticos que uno con esta información — y de paso, se ve más
+; profesional. No requiere que hagas nada extra al compilar, solo que
+; el .ahk tenga estas líneas (súbele el número de versión en cada release).
+;@Ahk2Exe-SetName GSX
+;@Ahk2Exe-SetDescription GSX - Gamepad Guide+Start task killer & mouse mode
+;@Ahk2Exe-SetVersion 0.3.3
+;@Ahk2Exe-SetProductVersion 0.3.3
+;@Ahk2Exe-SetProductName GSX
+;@Ahk2Exe-SetCompanyName Yabazta
+;@Ahk2Exe-SetCopyright Copyright (c) 2026 Yabazta
+
 #Requires AutoHotkey v2.0
 #SingleInstance Force
 Persistent
@@ -5,7 +20,7 @@ Persistent
 ; Current version and GitHub repo, used by the auto-updater.
 ; IMPORTANT: change GITHUB_REPO to your actual user/repo before publishing,
 ; and bump APP_VERSION with every release you make.
-APP_VERSION := "0.3.2"
+APP_VERSION := "0.3.3"
 GITHUB_REPO := "yabaztayt/GSX"
 
 RUN_KEY := "HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run"
